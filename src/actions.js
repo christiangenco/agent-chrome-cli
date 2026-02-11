@@ -364,6 +364,46 @@ export async function getTitle(client) {
 }
 
 /**
+ * Upload files to a file input element by ref.
+ * Uses CDP's DOM.setFileInputFiles to set files directly on the input.
+ * @param {CDP.Client} client
+ * @param {number} port
+ * @param {string} targetId
+ * @param {string} refArg - ref like "@e5"
+ * @param {string[]} filePaths - absolute paths to files
+ */
+export async function upload(client, port, targetId, refArg, filePaths) {
+  const ref = resolveRef(port, targetId, refArg);
+  const { DOM } = client;
+
+  // Resolve absolute paths
+  const path = await import('path');
+  const fs = await import('fs');
+  const resolvedPaths = filePaths.map(f => path.resolve(f));
+
+  // Verify files exist
+  for (const p of resolvedPaths) {
+    if (!fs.existsSync(p)) {
+      throw new Error(`File not found: ${p}`);
+    }
+  }
+
+  // Set files on the input element
+  await DOM.setFileInputFiles({
+    files: resolvedPaths,
+    backendNodeId: ref.backendDOMNodeId,
+  });
+
+  // Dispatch change event so frameworks pick it up
+  await callOnNode(client, ref.backendDOMNodeId, `function() {
+    this.dispatchEvent(new Event('change', { bubbles: true }));
+    this.dispatchEvent(new Event('input', { bubbles: true }));
+  }`);
+
+  return { uploaded: resolvedPaths, ref: refArg };
+}
+
+/**
  * Wait for a specified number of milliseconds.
  */
 export async function wait(ms) {

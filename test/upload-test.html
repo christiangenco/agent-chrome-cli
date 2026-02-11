@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>File Upload Test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; }
+    h1 { color: #333; }
+    .upload-section { margin: 20px 0; padding: 20px; border: 2px dashed #ccc; border-radius: 8px; }
+    .upload-section h2 { margin-top: 0; color: #555; }
+    #result { margin-top: 20px; padding: 15px; background: #f0f9f0; border-radius: 8px; display: none; }
+    #result.show { display: block; }
+    .file-info { margin: 8px 0; padding: 8px; background: white; border-radius: 4px; }
+    input[type="file"] { margin: 10px 0; }
+    button { padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #45a049; }
+  </style>
+</head>
+<body>
+  <h1>File Upload Test Page</h1>
+
+  <div class="upload-section">
+    <h2>Single File Upload</h2>
+    <input type="file" id="single-file" aria-label="Single file upload">
+    <br>
+    <button onclick="showFiles('single-file')">Check File</button>
+  </div>
+
+  <div class="upload-section">
+    <h2>Multiple File Upload</h2>
+    <input type="file" id="multi-file" multiple aria-label="Multiple file upload">
+    <br>
+    <button onclick="showFiles('multi-file')">Check Files</button>
+  </div>
+
+  <div class="upload-section">
+    <h2>Accept Images Only</h2>
+    <input type="file" id="image-file" accept="image/*" aria-label="Image file upload">
+    <br>
+    <button onclick="showFiles('image-file')">Check File</button>
+  </div>
+
+  <div id="result">
+    <h3>Upload Result</h3>
+    <div id="file-list"></div>
+  </div>
+
+  <script>
+    // Auto-show results when files change
+    document.querySelectorAll('input[type="file"]').forEach(input => {
+      input.addEventListener('change', () => showFiles(input.id));
+    });
+
+    function showFiles(inputId) {
+      const input = document.getElementById(inputId);
+      const result = document.getElementById('result');
+      const fileList = document.getElementById('file-list');
+
+      if (input.files.length === 0) {
+        result.className = 'show';
+        fileList.innerHTML = '<p>No files selected.</p>';
+        return;
+      }
+
+      let html = `<p><strong>${input.files.length} file(s) from "${inputId}":</strong></p>`;
+      for (const file of input.files) {
+        html += `<div class="file-info">
+          <strong>${file.name}</strong><br>
+          Size: ${(file.size / 1024).toFixed(1)} KB<br>
+          Type: ${file.type || 'unknown'}
+        </div>`;
+      }
+      fileList.innerHTML = html;
+      result.className = 'show';
+    }
+  </script>
+</body>
+</html>

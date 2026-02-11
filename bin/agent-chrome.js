@@ -73,6 +73,7 @@ Interactions:
   uncheck @eN                   Uncheck checkbox
   focus @eN                     Focus element
   hover @eN                     Hover element
+  upload @eN <files...>          Upload file(s) to a file input
   press <key>                   Press key (Enter, Tab, Escape, ArrowDown, ...)
   scroll <dir> [px]             Scroll page (up/down/left/right, default 400px)
   scrollintoview @eN            Scroll element into view
@@ -133,6 +134,7 @@ async function main() {
         case 'focus': return await cmdFocus(client, targetId);
         case 'hover': return await cmdHover(client, targetId);
         case 'press': return await cmdPress(client);
+        case 'upload': return await cmdUpload(client, targetId);
         case 'scroll': return await cmdScroll(client);
         case 'scrollintoview': return await cmdScrollIntoView(client, targetId);
         case 'open': return await cmdOpen(client);
@@ -256,6 +258,15 @@ async function cmdUncheck(client, targetId) {
   requireArg(restArgs[0], 'uncheck', '@eN');
   await actions.uncheck(client, port, targetId, restArgs[0]);
   console.log(`✓ Unchecked ${restArgs[0]}`);
+}
+
+async function cmdUpload(client, targetId) {
+  requireArg(restArgs[0], 'upload', '@eN <file1> [file2] ...');
+  requireArg(restArgs[1], 'upload', '@eN <file1> [file2] ...');
+  const filePaths = restArgs.slice(1);
+  const result = await actions.upload(client, port, targetId, restArgs[0], filePaths);
+  const names = result.uploaded.map(f => f.split('/').pop());
+  console.log(`✓ Uploaded ${names.length} file${names.length > 1 ? 's' : ''}: ${names.join(', ')}`);
 }
 
 async function cmdFocus(client, targetId) {

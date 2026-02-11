@@ -105,6 +105,7 @@ agent-chrome window close t3
 | `uncheck @eN` | Uncheck checkbox |
 | `focus @eN` | Focus element |
 | `hover @eN` | Hover element |
+| `upload @eN <files...>` | Upload file(s) to a file input |
 | `press <key>` | Press key (Enter, Tab, Escape, ArrowDown, ...) |
 | `scroll <dir> [px]` | Scroll page (up/down/left/right, default 400px) |
 | `scrollintoview @eN` | Scroll element into view |
