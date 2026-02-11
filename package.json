@@ -1,0 +1,18 @@
+{
+  "name": "agent-chrome",
+  "version": "0.1.0",
+  "description": "CLI for AI agents to interact with a running Chrome browser via CDP",
+  "type": "module",
+  "bin": {
+    "agent-chrome": "./bin/agent-chrome.js"
+  },
+  "scripts": {
+    "test": "node bin/agent-chrome.js tabs"
+  },
+  "keywords": ["chrome", "cdp", "automation", "agent", "cli"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chrome-remote-interface": "^0.34.0"
+  }
+}
