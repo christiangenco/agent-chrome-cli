@@ -4,6 +4,19 @@ CLI for AI agents to interact with your **running Chrome browser** via CDP (Chro
 
 Takes compact accessibility snapshots with clickable refs, fills forms, clicks buttons, takes screenshots, opens/closes tabs and windows — all scoped to specific tabs.
 
+## Why not just use agent-browser's CDP mode?
+
+[agent-browser](https://github.com/vercel-labs/agent-browser) has a `connect` command and `--cdp` flag for connecting to a running Chrome via CDP. If that covers your needs, great — agent-browser has a much larger feature set (network interception, traces, video recording, cloud providers, etc.).
+
+However, as of agent-browser v0.9.2, its CDP mode has some limitations when connecting to a real browser session:
+
+- **Multi-tab visibility**: `agent-browser tab list` only sees a single tab after connecting via CDP. `agent-chrome tabs` sees all open tabs and lets you target any of them with `--tab t2`.
+- **Stateless by design**: agent-chrome connects, runs one command, and exits. No daemon process, no session state to get out of sync. Ref mappings are cached to disk between invocations.
+- **Lightweight**: Single dependency (`chrome-remote-interface`). No Playwright, no Puppeteer.
+- **Tab/window management**: Open and close tabs and windows in your real browser — something agent-browser's CDP mode doesn't support.
+
+If agent-browser improves its CDP multi-tab support in the future, this project may become redundant. Until then, agent-chrome is the more reliable choice for controlling a real Chrome session with multiple tabs.
+
 ## Prerequisites
 
 Start Chrome with the remote debugging port enabled:
