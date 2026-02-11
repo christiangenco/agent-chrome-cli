@@ -133,6 +133,33 @@ agent-chrome window close t3
 |---|---|
 | `--port, -p <port>` | Chrome debug port (default: 9222, or `AGENT_CHROME_PORT` env) |
 | `--tab, -t <id>` | Target tab (e.g., t1). Omit to use last-used tab |
+| `--agent-id <id>` | Isolate cache for parallel agents (or `AGENT_CHROME_ID` env) |
+
+## Parallel Agents
+
+When running multiple AI agents that use agent-chrome simultaneously, use `--agent-id` to give each agent its own isolated cache. Without this, agents will overwrite each other's ref maps and tab state, causing element refs to resolve to wrong elements (or crash).
+
+```bash
+# Agent 1 (working on tab t1)
+agent-chrome --agent-id agent1 --tab t1 snapshot -c
+agent-chrome --agent-id agent1 --tab t1 click @e5
+
+# Agent 2 (working on tab t3) — runs at the same time, no conflicts
+agent-chrome --agent-id agent2 --tab t3 snapshot -c
+agent-chrome --agent-id agent2 --tab t3 fill @e3 "hello"
+```
+
+Or set via environment variable:
+
+```bash
+export AGENT_CHROME_ID=agent1
+agent-chrome --tab t1 snapshot -c
+agent-chrome --tab t1 click @e5
+```
+
+Each agent-id gets its own cache directory (`~/.agent-chrome/<agent-id>/`) with separate ref maps and tab state. All file writes use atomic rename to prevent partial reads even under heavy concurrency.
+
+**Note:** Even with `--agent-id`, two agents interacting with the *same tab* simultaneously can cause unpredictable behavior at the browser level (e.g., one scrolls while the other clicks). Assign each agent its own tab(s) for best results.
 
 ## AI Agent Workflow
 
@@ -168,7 +195,7 @@ agent-chrome tab close t2
 ## How It Works
 
 - **Stateless CLI**: Each invocation connects to Chrome via CDP, runs one command, exits
-- **Ref cache**: `~/.agent-chrome/` stores the ref→element mapping between invocations so `snapshot` assigns refs and `click @e5` resolves them
+- **Ref cache**: `~/.agent-chrome/[agent-id/]` stores the ref→element mapping between invocations so `snapshot` assigns refs and `click @e5` resolves them. All writes are atomic (temp file + rename) to prevent corruption under concurrent access
 - **Accessibility tree**: Uses Chrome's `Accessibility.getFullAXTree()` CDP API for the snapshot, not DOM scraping
 - **Element interaction**: Uses `backendDOMNodeId` from the accessibility tree to resolve elements, then interacts via `Runtime.callFunctionOn` and `Input.insertText`
 - **Single dependency**: Just `chrome-remote-interface` (no Playwright, no Puppeteer)

@@ -10,10 +10,11 @@ import { loadRefs } from './refs.js';
  * @param {number} port
  * @param {string} targetId
  * @param {string} refArg
+ * @param {string} [agentId]
  * @returns {{backendDOMNodeId: number, role: string, name: string}}
  */
-export function resolveRef(port, targetId, refArg) {
-  const refs = loadRefs(port, targetId);
+export function resolveRef(port, targetId, refArg, agentId) {
+  const refs = loadRefs(port, targetId, agentId);
   if (!refs) {
     throw new Error('No snapshot taken yet. Run `agent-chrome snapshot` first to get element refs.');
   }
@@ -56,8 +57,8 @@ async function callOnNode(client, backendDOMNodeId, fn, ...args) {
 /**
  * Click an element by ref.
  */
-export async function click(client, port, targetId, refArg) {
-  const ref = resolveRef(port, targetId, refArg);
+export async function click(client, port, targetId, refArg, agentId) {
+  const ref = resolveRef(port, targetId, refArg, agentId);
 
   // Scroll into view, then click
   await callOnNode(client, ref.backendDOMNodeId, `function() {
@@ -78,8 +79,8 @@ export async function click(client, port, targetId, refArg) {
  * Fill an element — clear then set value. Works for inputs, textareas, contenteditable.
  * Uses the Input.insertText approach for React/Angular compatibility.
  */
-export async function fill(client, port, targetId, refArg, text) {
-  const ref = resolveRef(port, targetId, refArg);
+export async function fill(client, port, targetId, refArg, text, agentId) {
+  const ref = resolveRef(port, targetId, refArg, agentId);
   const { DOM, Input } = client;
 
   // Focus the element
@@ -109,8 +110,8 @@ export async function fill(client, port, targetId, refArg, text) {
 /**
  * Type text into the focused element or a specific ref (append, don't clear).
  */
-export async function type(client, port, targetId, refArg, text) {
-  const ref = resolveRef(port, targetId, refArg);
+export async function type(client, port, targetId, refArg, text, agentId) {
+  const ref = resolveRef(port, targetId, refArg, agentId);
   const { DOM, Input } = client;
 
   // Focus the element
@@ -125,8 +126,8 @@ export async function type(client, port, targetId, refArg, text) {
 /**
  * Select a dropdown option by value or label.
  */
-export async function select(client, port, targetId, refArg, value) {
-  const ref = resolveRef(port, targetId, refArg);
+export async function select(client, port, targetId, refArg, value, agentId) {
+  const ref = resolveRef(port, targetId, refArg, agentId);
 
   const result = await callOnNode(client, ref.backendDOMNodeId, `function(val) {
     if (this.tagName !== 'SELECT') {
@@ -153,8 +154,8 @@ export async function select(client, port, targetId, refArg, value) {
 /**
  * Check a checkbox or radio.
  */
-export async function check(client, port, targetId, refArg) {
-  const ref = resolveRef(port, targetId, refArg);
+export async function check(client, port, targetId, refArg, agentId) {
+  const ref = resolveRef(port, targetId, refArg, agentId);
   await callOnNode(client, ref.backendDOMNodeId, `function() {
     if (!this.checked) this.click();
   }`);
@@ -164,8 +165,8 @@ export async function check(client, port, targetId, refArg) {
 /**
  * Uncheck a checkbox.
  */
-export async function uncheck(client, port, targetId, refArg) {
-  const ref = resolveRef(port, targetId, refArg);
+export async function uncheck(client, port, targetId, refArg, agentId) {
+  const ref = resolveRef(port, targetId, refArg, agentId);
   await callOnNode(client, ref.backendDOMNodeId, `function() {
     if (this.checked) this.click();
   }`);
@@ -175,8 +176,8 @@ export async function uncheck(client, port, targetId, refArg) {
 /**
  * Focus an element.
  */
-export async function focus(client, port, targetId, refArg) {
-  const ref = resolveRef(port, targetId, refArg);
+export async function focus(client, port, targetId, refArg, agentId) {
+  const ref = resolveRef(port, targetId, refArg, agentId);
   await client.DOM.focus({ backendNodeId: ref.backendDOMNodeId });
   return { focused: true, ref: refArg };
 }
@@ -184,8 +185,8 @@ export async function focus(client, port, targetId, refArg) {
 /**
  * Hover an element (scroll into view + move mouse to center).
  */
-export async function hover(client, port, targetId, refArg) {
-  const ref = resolveRef(port, targetId, refArg);
+export async function hover(client, port, targetId, refArg, agentId) {
+  const ref = resolveRef(port, targetId, refArg, agentId);
 
   // Scroll into view and get bounding rect
   const rect = await callOnNode(client, ref.backendDOMNodeId, `function() {
@@ -372,8 +373,8 @@ export async function getTitle(client) {
  * @param {string} refArg - ref like "@e5"
  * @param {string[]} filePaths - absolute paths to files
  */
-export async function upload(client, port, targetId, refArg, filePaths) {
-  const ref = resolveRef(port, targetId, refArg);
+export async function upload(client, port, targetId, refArg, filePaths, agentId) {
+  const ref = resolveRef(port, targetId, refArg, agentId);
   const { DOM } = client;
 
   // Resolve absolute paths
@@ -414,8 +415,8 @@ export async function wait(ms) {
 /**
  * Scroll an element into view by ref.
  */
-export async function scrollIntoView(client, port, targetId, refArg) {
-  const ref = resolveRef(port, targetId, refArg);
+export async function scrollIntoView(client, port, targetId, refArg, agentId) {
+  const ref = resolveRef(port, targetId, refArg, agentId);
   await callOnNode(client, ref.backendDOMNodeId, `function() {
     this.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }`);

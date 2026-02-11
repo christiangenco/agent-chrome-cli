@@ -24,18 +24,23 @@ import * as actions from '../src/actions.js';
 const args = process.argv.slice(2);
 let port = parseInt(process.env.AGENT_CHROME_PORT || '9222', 10);
 let tabArg = undefined;
+let agentId = process.env.AGENT_CHROME_ID || undefined;
 
-// Extract --port and --tab flags
+// Extract --port, --tab, and --agent-id flags
 const positional = [];
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--port' || args[i] === '-p') {
     port = parseInt(args[++i], 10);
   } else if (args[i] === '--tab' || args[i] === '-t') {
     tabArg = args[++i];
+  } else if (args[i] === '--agent-id') {
+    agentId = args[++i];
   } else if (args[i].startsWith('--port=')) {
     port = parseInt(args[i].split('=')[1], 10);
   } else if (args[i].startsWith('--tab=')) {
     tabArg = args[i].split('=')[1];
+  } else if (args[i].startsWith('--agent-id=')) {
+    agentId = args[i].split('=')[1];
   } else {
     positional.push(args[i]);
   }
@@ -94,6 +99,7 @@ Info:
 Options:
   --port, -p <port>             Chrome debug port (default: 9222, or AGENT_CHROME_PORT)
   --tab, -t <id>                Target tab (e.g., t1). Omit to use last-used tab.
+  --agent-id <id>               Isolate cache for parallel agents (or AGENT_CHROME_ID env)
   --help, -h                    Show this help
 
 Prerequisites:
@@ -118,7 +124,7 @@ async function main() {
     }
 
     // All other commands need a tab
-    const { targetId, shortId } = await resolveTab(port, tabArg);
+    const { targetId, shortId } = await resolveTab(port, tabArg, agentId);
     const client = await connectToTarget(port, targetId);
 
     try {
@@ -158,7 +164,7 @@ async function main() {
 // ── Command handlers ─────────────────────────────────────────────────
 
 async function cmdTabs() {
-  const { tabs } = await getTabs(port);
+  const { tabs } = await getTabs(port, agentId);
   if (tabs.length === 0) {
     console.log('No Chrome page tabs found.');
     return;
@@ -194,7 +200,7 @@ async function cmdSnapshot(client, targetId, shortId) {
   const { tree, refs } = await getSnapshot(client, { interactive, compact, maxDepth });
 
   // Save refs for subsequent commands
-  saveRefs(port, targetId, refs);
+  saveRefs(port, targetId, refs, agentId);
 
   // Get current URL for context
   const url = await actions.getUrl(client);
@@ -222,41 +228,41 @@ async function cmdScreenshot(client) {
 
 async function cmdClick(client, targetId) {
   requireArg(restArgs[0], 'click', '@eN');
-  const result = await actions.click(client, port, targetId, restArgs[0]);
+  const result = await actions.click(client, port, targetId, restArgs[0], agentId);
   console.log(`✓ Clicked ${result.role} "${result.name || ''}"`);
 }
 
 async function cmdFill(client, targetId) {
   requireArg(restArgs[0], 'fill', '@eN "text"');
   requireArg(restArgs[1], 'fill', '@eN "text"');
-  const result = await actions.fill(client, port, targetId, restArgs[0], restArgs.slice(1).join(' '));
+  const result = await actions.fill(client, port, targetId, restArgs[0], restArgs.slice(1).join(' '), agentId);
   console.log(`✓ Filled ${restArgs[0]} with "${result.text}"`);
 }
 
 async function cmdType(client, targetId) {
   requireArg(restArgs[0], 'type', '@eN "text"');
   requireArg(restArgs[1], 'type', '@eN "text"');
-  const result = await actions.type(client, port, targetId, restArgs[0], restArgs.slice(1).join(' '));
+  const result = await actions.type(client, port, targetId, restArgs[0], restArgs.slice(1).join(' '), agentId);
   console.log(`✓ Typed "${result.text}" into ${restArgs[0]}`);
 }
 
 async function cmdSelect(client, targetId) {
   requireArg(restArgs[0], 'select', '@eN "value"');
   requireArg(restArgs[1], 'select', '@eN "value"');
-  const result = await actions.select(client, port, targetId, restArgs[0], restArgs.slice(1).join(' '));
+  const result = await actions.select(client, port, targetId, restArgs[0], restArgs.slice(1).join(' '), agentId);
   if (result.note) console.log(`ℹ ${result.note}`);
   else console.log(`✓ Selected "${result.selected}" (value: ${result.value})`);
 }
 
 async function cmdCheck(client, targetId) {
   requireArg(restArgs[0], 'check', '@eN');
-  await actions.check(client, port, targetId, restArgs[0]);
+  await actions.check(client, port, targetId, restArgs[0], agentId);
   console.log(`✓ Checked ${restArgs[0]}`);
 }
 
 async function cmdUncheck(client, targetId) {
   requireArg(restArgs[0], 'uncheck', '@eN');
-  await actions.uncheck(client, port, targetId, restArgs[0]);
+  await actions.uncheck(client, port, targetId, restArgs[0], agentId);
   console.log(`✓ Unchecked ${restArgs[0]}`);
 }
 
@@ -264,20 +270,20 @@ async function cmdUpload(client, targetId) {
   requireArg(restArgs[0], 'upload', '@eN <file1> [file2] ...');
   requireArg(restArgs[1], 'upload', '@eN <file1> [file2] ...');
   const filePaths = restArgs.slice(1);
-  const result = await actions.upload(client, port, targetId, restArgs[0], filePaths);
+  const result = await actions.upload(client, port, targetId, restArgs[0], filePaths, agentId);
   const names = result.uploaded.map(f => f.split('/').pop());
   console.log(`✓ Uploaded ${names.length} file${names.length > 1 ? 's' : ''}: ${names.join(', ')}`);
 }
 
 async function cmdFocus(client, targetId) {
   requireArg(restArgs[0], 'focus', '@eN');
-  await actions.focus(client, port, targetId, restArgs[0]);
+  await actions.focus(client, port, targetId, restArgs[0], agentId);
   console.log(`✓ Focused ${restArgs[0]}`);
 }
 
 async function cmdHover(client, targetId) {
   requireArg(restArgs[0], 'hover', '@eN');
-  await actions.hover(client, port, targetId, restArgs[0]);
+  await actions.hover(client, port, targetId, restArgs[0], agentId);
   console.log(`✓ Hovered ${restArgs[0]}`);
 }
 
@@ -296,7 +302,7 @@ async function cmdScroll(client) {
 
 async function cmdScrollIntoView(client, targetId) {
   requireArg(restArgs[0], 'scrollintoview', '@eN');
-  await actions.scrollIntoView(client, port, targetId, restArgs[0]);
+  await actions.scrollIntoView(client, port, targetId, restArgs[0], agentId);
   console.log(`✓ Scrolled ${restArgs[0]} into view`);
 }
 
@@ -355,18 +361,18 @@ async function cmdTab() {
     const url = restArgs[1] || undefined;
     const { targetId } = await createTab(port, url || 'about:blank');
     // Refresh tab list so the new tab gets a short ID
-    const { tabs, map } = await getTabs(port);
+    const { tabs, map } = await getTabs(port, agentId);
     const newTab = tabs.find(t => t.targetId === targetId);
     const shortId = newTab ? newTab.shortId : '??';
     // Set as last-used tab
     if (newTab) {
       map.__last = newTab.shortId;
-      saveTabMap(port, map);
+      saveTabMap(port, map, agentId);
     }
     console.log(`✓ Opened new tab ${shortId}${url ? ` → ${url}` : ''}`);
   } else if (sub === 'close') {
     const closeId = restArgs[1] || tabArg;
-    const { tabs, map } = await getTabs(port);
+    const { tabs, map } = await getTabs(port, agentId);
     let targetId;
     let shortId;
 
@@ -379,7 +385,7 @@ async function cmdTab() {
       }
     } else {
       // Close last-used tab
-      const resolved = await resolveTab(port, undefined);
+      const resolved = await resolveTab(port, undefined, agentId);
       targetId = resolved.targetId;
       shortId = resolved.shortId;
     }
@@ -405,12 +411,12 @@ async function cmdWindow() {
     const url = restArgs[1] || undefined;
     const { targetId } = await createWindow(port, url || 'about:blank');
     // Refresh tab list so the new tab gets a short ID
-    const { tabs, map } = await getTabs(port);
+    const { tabs, map } = await getTabs(port, agentId);
     const newTab = tabs.find(t => t.targetId === targetId);
     const shortId = newTab ? newTab.shortId : '??';
     if (newTab) {
       map.__last = newTab.shortId;
-      saveTabMap(port, map);
+      saveTabMap(port, map, agentId);
     }
     console.log(`✓ Opened new window ${shortId}${url ? ` → ${url}` : ''}`);
   } else if (sub === 'close') {
@@ -418,7 +424,7 @@ async function cmdWindow() {
     let targetId;
     let shortId;
 
-    const { tabs, map } = await getTabs(port);
+    const { tabs, map } = await getTabs(port, agentId);
 
     if (closeId) {
       targetId = map[closeId];
@@ -427,7 +433,7 @@ async function cmdWindow() {
         error(`Tab "${closeId}" not found. Run 'agent-chrome tabs' to list tabs.`);
       }
     } else {
-      const resolved = await resolveTab(port, undefined);
+      const resolved = await resolveTab(port, undefined, agentId);
       targetId = resolved.targetId;
       shortId = resolved.shortId;
     }

@@ -1,25 +1,44 @@
 /**
  * Ref cache — persists the ref→backendDOMNodeId mapping between CLI invocations.
  *
- * Stored at ~/.agent-chrome/<port>-<targetId>.refs.json
+ * Stored at ~/.agent-chrome/[agentId/]<port>-<targetId>.refs.json
  * Also stores the tab mapping (short id → CDP target id).
+ *
+ * When --agent-id is provided, cache files are namespaced into a subdirectory
+ * so multiple agents can operate concurrently without clobbering each other.
+ *
+ * All writes use atomic write (temp file + rename) to prevent partial reads.
  */
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
+import { randomBytes } from 'node:crypto';
 
-function getCacheDir() {
-  const dir = join(homedir(), '.agent-chrome');
+/**
+ * Atomically write a file by writing to a temp file first, then renaming.
+ * rename() is atomic on the same filesystem on Linux/macOS.
+ */
+function atomicWriteFileSync(filePath, data) {
+  const dir = dirname(filePath);
+  mkdirSync(dir, { recursive: true });
+  const tmp = filePath + '.' + randomBytes(6).toString('hex') + '.tmp';
+  writeFileSync(tmp, data);
+  renameSync(tmp, filePath);
+}
+
+function getCacheDir(agentId) {
+  const base = join(homedir(), '.agent-chrome');
+  const dir = agentId ? join(base, agentId) : base;
   mkdirSync(dir, { recursive: true });
   return dir;
 }
 
 // ── Ref cache (per tab) ─────────────────────────────────────────────
 
-function refCachePath(port, targetId) {
+function refCachePath(port, targetId, agentId) {
   // Use first 8 chars of targetId to keep filenames short
   const short = targetId.slice(0, 8);
-  return join(getCacheDir(), `${port}-${short}.refs.json`);
+  return join(getCacheDir(agentId), `${port}-${short}.refs.json`);
 }
 
 /**
@@ -27,19 +46,21 @@ function refCachePath(port, targetId) {
  * @param {number} port
  * @param {string} targetId
  * @param {Record<string, {backendDOMNodeId: number, role: string, name: string}>} refs
+ * @param {string} [agentId]
  */
-export function saveRefs(port, targetId, refs) {
-  writeFileSync(refCachePath(port, targetId), JSON.stringify(refs, null, 2));
+export function saveRefs(port, targetId, refs, agentId) {
+  atomicWriteFileSync(refCachePath(port, targetId, agentId), JSON.stringify(refs, null, 2));
 }
 
 /**
  * Load the ref map for a specific tab.
  * @param {number} port
  * @param {string} targetId
+ * @param {string} [agentId]
  * @returns {Record<string, {backendDOMNodeId: number, role: string, name: string}>|null}
  */
-export function loadRefs(port, targetId) {
-  const p = refCachePath(port, targetId);
+export function loadRefs(port, targetId, agentId) {
+  const p = refCachePath(port, targetId, agentId);
   if (!existsSync(p)) return null;
   try {
     return JSON.parse(readFileSync(p, 'utf8'));
@@ -50,22 +71,27 @@ export function loadRefs(port, targetId) {
 
 // ── Tab mapping (port-level) ────────────────────────────────────────
 
-function tabMapPath(port) {
-  return join(getCacheDir(), `${port}-tabs.json`);
+function tabMapPath(port, agentId) {
+  return join(getCacheDir(agentId), `${port}-tabs.json`);
 }
 
 /**
  * Save tab mapping: { shortId → cdpTargetId, __last → shortId }
+ * @param {number} port
+ * @param {object} map
+ * @param {string} [agentId]
  */
-export function saveTabMap(port, map) {
-  writeFileSync(tabMapPath(port), JSON.stringify(map, null, 2));
+export function saveTabMap(port, map, agentId) {
+  atomicWriteFileSync(tabMapPath(port, agentId), JSON.stringify(map, null, 2));
 }
 
 /**
  * Load tab mapping.
+ * @param {number} port
+ * @param {string} [agentId]
  */
-export function loadTabMap(port) {
-  const p = tabMapPath(port);
+export function loadTabMap(port, agentId) {
+  const p = tabMapPath(port, agentId);
   if (!existsSync(p)) return null;
   try {
     return JSON.parse(readFileSync(p, 'utf8'));

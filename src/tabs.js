@@ -9,11 +9,12 @@ import { loadTabMap, saveTabMap } from './refs.js';
  * Build the tab list with short IDs.
  * Tries to preserve existing short IDs for known targets.
  * @param {number} port
+ * @param {string} [agentId]
  * @returns {Promise<{tabs: Array<{shortId: string, targetId: string, title: string, url: string}>, map: object}>}
  */
-export async function getTabs(port) {
+export async function getTabs(port, agentId) {
   const targets = await listTargets(port);
-  const oldMap = loadTabMap(port) || {};
+  const oldMap = loadTabMap(port, agentId) || {};
 
   // Build reverse: targetId → old shortId
   const targetToShort = {};
@@ -51,7 +52,7 @@ export async function getTabs(port) {
     newMap.__last = oldMap.__last;
   }
 
-  saveTabMap(port, newMap);
+  saveTabMap(port, newMap, agentId);
   return { tabs, map: newMap };
 }
 
@@ -60,10 +61,11 @@ export async function getTabs(port) {
  * Accepts: short ID (t1), nothing (uses __last or first tab).
  * @param {number} port
  * @param {string|undefined} tabArg
+ * @param {string} [agentId]
  * @returns {Promise<{targetId: string, shortId: string}>}
  */
-export async function resolveTab(port, tabArg) {
-  const { tabs, map } = await getTabs(port);
+export async function resolveTab(port, tabArg, agentId) {
+  const { tabs, map } = await getTabs(port, agentId);
 
   if (tabs.length === 0) {
     throw new Error('No Chrome page tabs found. Is Chrome running with --remote-debugging-port?');
@@ -78,7 +80,7 @@ export async function resolveTab(port, tabArg) {
     }
     // Update __last
     map.__last = tabArg;
-    saveTabMap(port, map);
+    saveTabMap(port, map, agentId);
     return { targetId, shortId: tabArg };
   }
 
@@ -91,6 +93,6 @@ export async function resolveTab(port, tabArg) {
   // Default to first tab
   const first = tabs[0];
   map.__last = first.shortId;
-  saveTabMap(port, map);
+  saveTabMap(port, map, agentId);
   return { targetId: first.targetId, shortId: first.shortId };
 }
