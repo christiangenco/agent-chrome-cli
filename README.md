@@ -58,8 +58,11 @@ agent-chrome fill @e3 "christian@example.com"
 # Click a button
 agent-chrome click @e5
 
-# Take a screenshot
+# Take a screenshot (visible viewport only)
 agent-chrome screenshot
+
+# Take a full-page screenshot (captures beyond viewport)
+agent-chrome screenshot --full
 
 # Navigate
 agent-chrome open "https://example.com"
@@ -117,7 +120,7 @@ agent-chrome window close t3
 ### Info
 | Command | Description |
 |---|---|
-| `screenshot [path]` | Take PNG screenshot |
+| `screenshot [path] [--full]` | Take PNG screenshot (default: viewport only; `--full`: entire page) |
 | `eval <js>` | Run JavaScript in page |
 | `get url` | Get current URL |
 | `get title` | Get page title |
@@ -151,6 +154,8 @@ agent-chrome --tab t2 click @e8
 
 # 5. If something's unclear, take a screenshot
 agent-chrome --tab t2 screenshot
+# Or capture the full page beyond the viewport
+agent-chrome --tab t2 screenshot --full
 
 # 6. Submit
 agent-chrome --tab t2 click @e12

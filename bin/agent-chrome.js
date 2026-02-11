@@ -212,8 +212,8 @@ async function cmdSnapshot(client, targetId, shortId) {
 }
 
 async function cmdScreenshot(client) {
-  const savePath = restArgs[0] || undefined;
   const fullPage = restArgs.includes('--full');
+  const savePath = restArgs.filter(a => a !== '--full')[0] || undefined;
   const { path } = await screenshot(client, savePath, { fullPage });
   console.log(path);
 }
