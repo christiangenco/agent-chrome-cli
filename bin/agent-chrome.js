@@ -13,9 +13,9 @@
  */
 
 import { getTabs, resolveTab } from '../src/tabs.js';
-import { connectToTarget } from '../src/connection.js';
+import { connectToTarget, createTab, closeTab, createWindow, closeWindow } from '../src/connection.js';
 import { getSnapshot } from '../src/snapshot.js';
-import { saveRefs } from '../src/refs.js';
+import { saveRefs, saveTabMap, loadTabMap } from '../src/refs.js';
 import { screenshot } from '../src/screenshot.js';
 import * as actions from '../src/actions.js';
 
@@ -53,6 +53,10 @@ Usage: agent-chrome [--port <port>] [--tab <id>] <command> [args]
 
 Tab Management:
   tabs                          List all Chrome tabs with short IDs
+  tab new [url]                 Open a new tab (optionally to URL)
+  tab close [id]                Close a tab (default: current tab)
+  window new [url]              Open a new window (optionally to URL)
+  window close [id]             Close window containing tab id (default: current)
 
 Snapshots:
   snapshot                      Accessibility tree with refs
@@ -104,6 +108,12 @@ async function main() {
     // Commands that don't need a tab connection
     if (command === 'tabs') {
       return await cmdTabs();
+    }
+    if (command === 'tab') {
+      return await cmdTab();
+    }
+    if (command === 'window') {
+      return await cmdWindow();
     }
 
     // All other commands need a tab
@@ -326,6 +336,96 @@ async function cmdWait() {
   const ms = parseInt(restArgs[0] || '1000', 10);
   await actions.wait(ms);
   console.log(`✓ Waited ${ms}ms`);
+}
+
+async function cmdTab() {
+  const sub = restArgs[0];
+  if (sub === 'new') {
+    const url = restArgs[1] || undefined;
+    const { targetId } = await createTab(port, url || 'about:blank');
+    // Refresh tab list so the new tab gets a short ID
+    const { tabs, map } = await getTabs(port);
+    const newTab = tabs.find(t => t.targetId === targetId);
+    const shortId = newTab ? newTab.shortId : '??';
+    // Set as last-used tab
+    if (newTab) {
+      map.__last = newTab.shortId;
+      saveTabMap(port, map);
+    }
+    console.log(`✓ Opened new tab ${shortId}${url ? ` → ${url}` : ''}`);
+  } else if (sub === 'close') {
+    const closeId = restArgs[1] || tabArg;
+    const { tabs, map } = await getTabs(port);
+    let targetId;
+    let shortId;
+
+    if (closeId) {
+      // Close specific tab
+      targetId = map[closeId];
+      shortId = closeId;
+      if (!targetId) {
+        error(`Tab "${closeId}" not found. Run 'agent-chrome tabs' to list tabs.`);
+      }
+    } else {
+      // Close last-used tab
+      const resolved = await resolveTab(port, undefined);
+      targetId = resolved.targetId;
+      shortId = resolved.shortId;
+    }
+
+    if (tabs.length <= 1) {
+      error(`Cannot close the last tab. Close the browser window manually.`);
+    }
+
+    const { success } = await closeTab(port, targetId);
+    if (success) {
+      console.log(`✓ Closed tab ${shortId}`);
+    } else {
+      error(`Failed to close tab ${shortId}`);
+    }
+  } else {
+    error(`Unknown tab subcommand: ${sub}. Use 'tab new [url]' or 'tab close [id]'.`);
+  }
+}
+
+async function cmdWindow() {
+  const sub = restArgs[0];
+  if (sub === 'new') {
+    const url = restArgs[1] || undefined;
+    const { targetId } = await createWindow(port, url || 'about:blank');
+    // Refresh tab list so the new tab gets a short ID
+    const { tabs, map } = await getTabs(port);
+    const newTab = tabs.find(t => t.targetId === targetId);
+    const shortId = newTab ? newTab.shortId : '??';
+    if (newTab) {
+      map.__last = newTab.shortId;
+      saveTabMap(port, map);
+    }
+    console.log(`✓ Opened new window ${shortId}${url ? ` → ${url}` : ''}`);
+  } else if (sub === 'close') {
+    const closeId = restArgs[1] || tabArg;
+    let targetId;
+    let shortId;
+
+    const { tabs, map } = await getTabs(port);
+
+    if (closeId) {
+      targetId = map[closeId];
+      shortId = closeId;
+      if (!targetId) {
+        error(`Tab "${closeId}" not found. Run 'agent-chrome tabs' to list tabs.`);
+      }
+    } else {
+      const resolved = await resolveTab(port, undefined);
+      targetId = resolved.targetId;
+      shortId = resolved.shortId;
+    }
+
+    const { closed } = await closeWindow(port, targetId);
+    console.log(`✓ Closed window containing ${shortId} (${closed} tab${closed !== 1 ? 's' : ''} closed)`);
+  } else {
+    error(`Unknown window subcommand: ${sub}. Use 'window new [url]' or 'window close [id]'.`);
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────

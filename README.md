@@ -1,6 +1,8 @@
 # agent-chrome
 
-CLI for AI agents to interact with your **running Chrome browser** via CDP (Chrome DevTools Protocol). Takes compact accessibility snapshots with clickable refs, fills forms, clicks buttons, takes screenshots — all scoped to specific tabs.
+CLI for AI agents to interact with your **running Chrome browser** via CDP (Chrome DevTools Protocol). Roughly the same API as [agent-browser](https://github.com/vercel-labs/agent-browser), but connects to your real Chrome session instead of launching a sandboxed one.
+
+Takes compact accessibility snapshots with clickable refs, fills forms, clicks buttons, takes screenshots, opens/closes tabs and windows — all scoped to specific tabs.
 
 ## Prerequisites
 
@@ -48,14 +50,24 @@ agent-chrome screenshot
 
 # Navigate
 agent-chrome open "https://example.com"
+
+# Open and close tabs/windows
+agent-chrome tab new "https://example.com"
+agent-chrome tab close t3
+agent-chrome window new "https://example.com"
+agent-chrome window close t3
 ```
 
 ## Commands
 
-### Tab Management
+### Tab & Window Management
 | Command | Description |
 |---|---|
 | `tabs` | List all Chrome tabs with short IDs (t1, t2, ...) |
+| `tab new [url]` | Open a new tab (optionally navigate to URL) |
+| `tab close [id]` | Close a tab (default: current tab) |
+| `window new [url]` | Open a new window (optionally navigate to URL) |
+| `window close [id]` | Close window containing tab (default: current) |
 
 ### Snapshots
 | Command | Description |
@@ -113,22 +125,25 @@ Typical workflow for an AI agent filling out a form:
 # 1. See what tabs are open
 agent-chrome tabs
 
-# 2. Navigate to the form
-agent-chrome --tab t1 open "https://ads.google.com/..."
+# 2. Open a new tab and navigate to the form
+agent-chrome tab new "https://ads.google.com/..."
 
 # 3. Get a snapshot to understand the page
-agent-chrome --tab t1 snapshot -c
+agent-chrome --tab t2 snapshot -c
 
 # 4. Fill form fields using refs from the snapshot
-agent-chrome --tab t1 fill @e3 "My Campaign"
-agent-chrome --tab t1 fill @e5 "100.00"
-agent-chrome --tab t1 click @e8
+agent-chrome --tab t2 fill @e3 "My Campaign"
+agent-chrome --tab t2 fill @e5 "100.00"
+agent-chrome --tab t2 click @e8
 
 # 5. If something's unclear, take a screenshot
-agent-chrome --tab t1 screenshot
+agent-chrome --tab t2 screenshot
 
 # 6. Submit
-agent-chrome --tab t1 click @e12
+agent-chrome --tab t2 click @e12
+
+# 7. Close the tab when done
+agent-chrome tab close t2
 ```
 
 ## How It Works
@@ -137,13 +152,4 @@ agent-chrome --tab t1 click @e12
 - **Ref cache**: `~/.agent-chrome/` stores the ref→element mapping between invocations so `snapshot` assigns refs and `click @e5` resolves them
 - **Accessibility tree**: Uses Chrome's `Accessibility.getFullAXTree()` CDP API for the snapshot, not DOM scraping
 - **Element interaction**: Uses `backendDOMNodeId` from the accessibility tree to resolve elements, then interacts via `Runtime.callFunctionOn` and `Input.insertText`
-- **No close/destroy**: Designed for your real browser — can't close tabs or windows
-
-## Safety
-
-This tool interacts with your **actual running Chrome session**. It intentionally does **not** support:
-- Closing tabs or windows
-- Closing the browser
-- Creating new tabs or windows
-
-It can navigate, click, fill forms, and take screenshots in existing tabs.
+- **Single dependency**: Just `chrome-remote-interface` (no Playwright, no Puppeteer)
