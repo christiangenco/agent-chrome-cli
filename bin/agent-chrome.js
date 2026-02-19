@@ -91,6 +91,9 @@ Navigation:
 
 Info:
   screenshot [path]             Take screenshot (PNG)
+  screenshot --annotate         Screenshot with numbered labels on interactive elements
+  screenshot --full             Full-page screenshot
+  screenshot --full --annotate  Full-page with annotations
   eval <js>                     Run JavaScript
   get url                       Get current URL
   get title                     Get page title
@@ -220,10 +223,18 @@ async function cmdSnapshot(client, targetId, shortId) {
 }
 
 async function cmdScreenshot(client) {
-  const fullPage = restArgs.includes('--full');
-  const savePath = restArgs.filter(a => a !== '--full')[0] || undefined;
-  const { path } = await screenshot(client, savePath, { fullPage });
+  const fullPage = restArgs.includes('--full') || restArgs.includes('-f');
+  const annotate = restArgs.includes('--annotate');
+  const savePath = restArgs.filter(a => !a.startsWith('-'))[0] || undefined;
+  const { path, annotations } = await screenshot(client, savePath, { fullPage, annotate });
   console.log(path);
+  if (annotations && annotations.length > 0) {
+    console.log(`\n${annotations.length} annotated elements:`);
+    for (const a of annotations) {
+      const name = a.name ? ` "${a.name}"` : '';
+      console.log(`  @e${a.number}  ${a.role}${name}`);
+    }
+  }
 }
 
 async function cmdClick(client, targetId) {
