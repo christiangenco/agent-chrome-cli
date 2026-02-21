@@ -25,6 +25,7 @@ const args = process.argv.slice(2);
 let port = parseInt(process.env.AGENT_CHROME_PORT || '9222', 10);
 let tabArg = undefined;
 let agentId = process.env.AGENT_CHROME_ID || undefined;
+let timeout = parseInt(process.env.AGENT_CHROME_TIMEOUT || '30', 10); // seconds
 
 // Extract --port, --tab, and --agent-id flags
 const positional = [];
@@ -35,12 +36,16 @@ for (let i = 0; i < args.length; i++) {
     tabArg = args[++i];
   } else if (args[i] === '--agent-id') {
     agentId = args[++i];
+  } else if (args[i] === '--timeout') {
+    timeout = parseInt(args[++i], 10);
   } else if (args[i].startsWith('--port=')) {
     port = parseInt(args[i].split('=')[1], 10);
   } else if (args[i].startsWith('--tab=')) {
     tabArg = args[i].split('=')[1];
   } else if (args[i].startsWith('--agent-id=')) {
     agentId = args[i].split('=')[1];
+  } else if (args[i].startsWith('--timeout=')) {
+    timeout = parseInt(args[i].split('=')[1], 10);
   } else {
     positional.push(args[i]);
   }
@@ -103,12 +108,22 @@ Options:
   --port, -p <port>             Chrome debug port (default: 9222, or AGENT_CHROME_PORT)
   --tab, -t <id>                Target tab (e.g., t1). Omit to use last-used tab.
   --agent-id <id>               Isolate cache for parallel agents (or AGENT_CHROME_ID env)
+  --timeout <seconds>           Process timeout (default: 30, or AGENT_CHROME_TIMEOUT env)
   --help, -h                    Show this help
 
 Prerequisites:
   Start Chrome with: google-chrome --remote-debugging-port=9222
 `);
   process.exit(0);
+}
+
+// ── Timeout guard ────────────────────────────────────────────────────
+
+if (timeout > 0) {
+  setTimeout(() => {
+    console.error(`✗ Timed out after ${timeout}s. Use --timeout <seconds> to increase.`);
+    process.exit(124); // 124 = timeout (same as GNU timeout)
+  }, timeout * 1000).unref();
 }
 
 // ── Main ─────────────────────────────────────────────────────────────
