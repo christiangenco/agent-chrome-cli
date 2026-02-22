@@ -23,6 +23,10 @@ agent-chrome --tab t1 upload @e3 /path/to/file # Upload file to input
 agent-chrome --tab t1 screenshot               # Screenshot (viewport only)
 agent-chrome --tab t1 screenshot --full        # Full-page screenshot
 agent-chrome --tab t1 screenshot --annotate    # Screenshot with numbered labels on interactive elements
+agent-chrome --tab t1 emulate mobile           # Mobile view (iPhone 14 — 390×844)
+agent-chrome --tab t1 emulate "iPad Pro"       # Named device preset
+agent-chrome --tab t1 emulate 360 800          # Custom mobile dimensions
+agent-chrome --tab t1 emulate off              # Reset to desktop
 agent-chrome --tab t1 open "https://x.com"     # Navigate tab to URL
 agent-chrome --tab t1 back                     # Go back
 agent-chrome --tab t1 forward                  # Go forward

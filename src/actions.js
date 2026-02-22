@@ -413,6 +413,60 @@ export async function wait(ms) {
 }
 
 /**
+ * Device presets for emulation (matching Chrome DevTools).
+ */
+const devicePresets = {
+  'mobile':           { width: 390,  height: 844,  deviceScaleFactor: 3,     mobile: true },
+  'iphone se':        { width: 375,  height: 667,  deviceScaleFactor: 2,     mobile: true },
+  'iphone 14':        { width: 390,  height: 844,  deviceScaleFactor: 3,     mobile: true },
+  'iphone 14 pro':    { width: 393,  height: 852,  deviceScaleFactor: 3,     mobile: true },
+  'iphone 14 pro max':{ width: 430,  height: 932,  deviceScaleFactor: 3,     mobile: true },
+  'iphone 16 pro':    { width: 402,  height: 874,  deviceScaleFactor: 3,     mobile: true },
+  'pixel 7':          { width: 412,  height: 915,  deviceScaleFactor: 2.625, mobile: true },
+  'samsung galaxy s20':{ width: 360, height: 800,  deviceScaleFactor: 3,     mobile: true },
+  'ipad':             { width: 768,  height: 1024, deviceScaleFactor: 2,     mobile: true },
+  'ipad air':         { width: 820,  height: 1180, deviceScaleFactor: 2,     mobile: true },
+  'ipad pro':         { width: 1024, height: 1366, deviceScaleFactor: 2,     mobile: true },
+};
+
+/**
+ * Emulate a device (mobile viewport override).
+ * @param {string|null} device - preset name, "off", or null for custom
+ * @param {number|null} width - custom width (if no preset)
+ * @param {number|null} height - custom height (if no preset)
+ */
+export async function emulate(client, device, width, height) {
+  const { Emulation } = client;
+
+  if (device === 'off' || device === 'reset' || device === 'desktop') {
+    await Emulation.clearDeviceMetricsOverride();
+    return { emulating: 'desktop (reset)', width: null, height: null };
+  }
+
+  let params;
+  if (device && devicePresets[device.toLowerCase()]) {
+    params = { ...devicePresets[device.toLowerCase()] };
+  } else if (width && height) {
+    params = { width, height, deviceScaleFactor: 3, mobile: true };
+  } else if (device) {
+    // Unknown preset name
+    const available = Object.keys(devicePresets).join(', ');
+    throw new Error(`Unknown device "${device}". Available presets: ${available}, or use: emulate <width> <height>`);
+  } else {
+    params = { ...devicePresets['mobile'] };
+  }
+
+  await Emulation.setDeviceMetricsOverride(params);
+  return {
+    emulating: device || `${params.width}x${params.height}`,
+    width: params.width,
+    height: params.height,
+    scale: params.deviceScaleFactor,
+    mobile: params.mobile,
+  };
+}
+
+/**
  * Scroll an element into view by ref.
  */
 export async function scrollIntoView(client, port, targetId, refArg, agentId) {

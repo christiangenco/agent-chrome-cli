@@ -4,7 +4,7 @@
   "description": "CLI for AI agents to interact with a running Chrome browser via CDP",
   "type": "module",
   "bin": {
-    "agent-chrome": "./bin/agent-chrome.js"
+    "agent-chrome-cli": "./bin/agent-chrome.js"
   },
   "scripts": {
     "test": "node bin/agent-chrome.js tabs"

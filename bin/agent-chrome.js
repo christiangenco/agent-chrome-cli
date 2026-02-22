@@ -88,6 +88,12 @@ Interactions:
   scroll <dir> [px]             Scroll page (up/down/left/right, default 400px)
   scrollintoview @eN            Scroll element into view
 
+Device Emulation:
+  emulate                       Mobile view (390×844, default iPhone 14)
+  emulate <device>              Named preset (e.g., "iPhone SE", "iPad Pro")
+  emulate <width> <height>      Custom mobile viewport
+  emulate off                   Reset to normal desktop view
+
 Navigation:
   open <url>                    Navigate to URL
   back                          Go back
@@ -161,6 +167,7 @@ async function main() {
         case 'upload': return await cmdUpload(client, targetId);
         case 'scroll': return await cmdScroll(client);
         case 'scrollintoview': return await cmdScrollIntoView(client, targetId);
+        case 'emulate': return await cmdEmulate(client);
         case 'open': return await cmdOpen(client);
         case 'back': return await cmdBack(client);
         case 'forward': return await cmdForward(client);
@@ -372,6 +379,38 @@ async function cmdGet(client) {
     console.log(await actions.getTitle(client));
   } else {
     error(`Unknown get target: ${what}. Use 'url' or 'title'.`);
+  }
+}
+
+async function cmdEmulate(client) {
+  const arg0 = restArgs[0];
+  const arg1 = restArgs[1];
+
+  if (!arg0) {
+    // No args — default mobile
+    const result = await actions.emulate(client, 'mobile', null, null);
+    console.log(`✓ Emulating ${result.emulating} (${result.width}×${result.height} @${result.scale}x)`);
+    return;
+  }
+
+  // Check if first arg is a number (custom width×height)
+  const maybeWidth = parseInt(arg0, 10);
+  if (!isNaN(maybeWidth) && arg1) {
+    const maybeHeight = parseInt(arg1, 10);
+    if (!isNaN(maybeHeight)) {
+      const result = await actions.emulate(client, null, maybeWidth, maybeHeight);
+      console.log(`✓ Emulating ${result.width}×${result.height} @${result.scale}x`);
+      return;
+    }
+  }
+
+  // Named device or "off"
+  const device = restArgs.join(' ');
+  const result = await actions.emulate(client, device, null, null);
+  if (result.width) {
+    console.log(`✓ Emulating ${result.emulating} (${result.width}×${result.height} @${result.scale}x)`);
+  } else {
+    console.log(`✓ ${result.emulating}`);
   }
 }
 
