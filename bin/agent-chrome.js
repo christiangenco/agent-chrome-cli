@@ -105,7 +105,7 @@ Info:
   screenshot --annotate         Screenshot with numbered labels on interactive elements
   screenshot --full             Full-page screenshot
   screenshot --full --annotate  Full-page with annotations
-  eval <js>                     Run JavaScript
+  eval|exec|evaluate <js>       Run JavaScript
   get url                       Get current URL
   get title                     Get page title
   wait <ms>                     Wait milliseconds
@@ -172,7 +172,7 @@ async function main() {
         case 'back': return await cmdBack(client);
         case 'forward': return await cmdForward(client);
         case 'reload': return await cmdReload(client);
-        case 'eval': return await cmdEval(client);
+        case 'eval': case 'exec': case 'evaluate': return await cmdEval(client);
         case 'get': return await cmdGet(client);
         case 'wait': return await cmdWait();
         default:
