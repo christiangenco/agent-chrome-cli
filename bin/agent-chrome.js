@@ -18,6 +18,7 @@ import { getSnapshot } from '../src/snapshot.js';
 import { saveRefs, saveTabMap, loadTabMap } from '../src/refs.js';
 import { screenshot } from '../src/screenshot.js';
 import * as actions from '../src/actions.js';
+import { readFile } from 'node:fs/promises';
 
 // ── Parse arguments ──────────────────────────────────────────────────
 
@@ -106,6 +107,7 @@ Info:
   screenshot --full             Full-page screenshot
   screenshot --full --annotate  Full-page with annotations
   eval|exec|evaluate <js>       Run JavaScript
+  eval|exec|evaluate --file <path>  Run JavaScript from file
   get url                       Get current URL
   get title                     Get page title
   wait <ms>                     Wait milliseconds
@@ -363,8 +365,38 @@ async function cmdReload(client) {
 }
 
 async function cmdEval(client) {
-  requireArg(restArgs[0], 'eval', '<javascript>');
-  const expr = restArgs.join(' ');
+  let filePath;
+  const jsParts = [];
+
+  for (let i = 0; i < restArgs.length; i++) {
+    const arg = restArgs[i];
+    if (arg === '--file') {
+      filePath = restArgs[++i];
+      if (!filePath) {
+        error(`Missing file path. Usage: agent-chrome eval --file <path>`);
+      }
+    } else if (arg.startsWith('--file=')) {
+      filePath = arg.slice('--file='.length);
+      if (!filePath) {
+        error(`Missing file path. Usage: agent-chrome eval --file <path>`);
+      }
+    } else {
+      jsParts.push(arg);
+    }
+  }
+
+  let expr;
+  if (filePath) {
+    try {
+      expr = await readFile(filePath, 'utf8');
+    } catch (err) {
+      error(`Failed to read JS file "${filePath}": ${err.message || String(err)}`);
+    }
+  } else {
+    requireArg(jsParts[0], 'eval', '<javascript>');
+    expr = jsParts.join(' ');
+  }
+
   const result = await actions.evaluate(client, expr);
   if (result !== undefined) {
     console.log(typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result));

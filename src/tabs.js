@@ -75,6 +75,9 @@ export async function resolveTab(port, tabArg, agentId) {
     // Look up by short ID
     const targetId = map[tabArg];
     if (!targetId) {
+      if (tabArg === 'new') {
+        throw new Error('"new" is not a tab ID. To open a new tab, use: agent-chrome tab new [url]');
+      }
       const available = tabs.map(t => `${t.shortId} (${t.title.slice(0, 40)})`).join('\n  ');
       throw new Error(`Tab "${tabArg}" not found. Available tabs:\n  ${available}`);
     }

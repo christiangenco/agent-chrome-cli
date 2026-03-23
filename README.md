@@ -122,7 +122,7 @@ agent-chrome window close t3
 | Command | Description |
 |---|---|
 | `screenshot [path] [--full]` | Take PNG screenshot (default: viewport only; `--full`: entire page) |
-| `eval <js>` | Run JavaScript in page |
+| `eval <js>` / `eval --file <path>` | Run JavaScript in page |
 | `get url` | Get current URL |
 | `get title` | Get page title |
 | `wait <ms>` | Wait milliseconds |
