@@ -110,6 +110,29 @@ agent-chrome window close t3
 | `scroll <dir> [px]` | Scroll page (up/down/left/right, default 400px) |
 | `scrollintoview @eN` | Scroll element into view |
 
+### Network Monitoring
+| Command | Description |
+|---|---|
+| `network start` | Start capturing network requests (background collector) |
+| `network stop` | Stop capturing and clean up |
+| `network list` | List all captured requests |
+| `network list --type Fetch,XHR` | Filter by resource type |
+| `network list --url "*/api/*"` | Filter by URL glob |
+| `network list --status 200` | Filter by HTTP status |
+| `network list --json` | Only `application/json` responses |
+| `network get rN` | Full request + response headers and body |
+| `network clear` | Clear data without stopping the collector |
+
+### Console Monitoring
+| Command | Description |
+|---|---|
+| `console start` | Start capturing console messages (background collector) |
+| `console stop` | Stop capturing and clean up |
+| `console list` | List all captured messages |
+| `console list --level error,warning` | Filter by level |
+| `console get mN` | Full details of a specific message |
+| `console clear` | Clear data without stopping the collector |
+
 ### Navigation
 | Command | Description |
 |---|---|
@@ -192,6 +215,29 @@ agent-chrome --tab t2 click @e12
 agent-chrome tab close t2
 ```
 
+## API Discovery Workflow
+
+Use network monitoring to reverse-engineer a website's internal API:
+
+```bash
+# 1. Open the site and start monitoring
+agent-chrome tab new "https://example.com"
+agent-chrome --tab t2 network start
+
+# 2. Interact with the page (click around, submit forms, etc.)
+agent-chrome --tab t2 click @e5
+
+# 3. See what JSON API calls were made
+agent-chrome --tab t2 network list --json
+
+# 4. Inspect a specific request — see full URL, headers, auth tokens, request/response bodies
+agent-chrome --tab t2 network get r3
+
+# 5. Clean up
+agent-chrome --tab t2 network stop
+agent-chrome tab close t2
+```
+
 ## How It Works
 
 - **Stateless CLI**: Each invocation connects to Chrome via CDP, runs one command, exits
@@ -199,3 +245,4 @@ agent-chrome tab close t2
 - **Accessibility tree**: Uses Chrome's `Accessibility.getFullAXTree()` CDP API for the snapshot, not DOM scraping
 - **Element interaction**: Uses `backendDOMNodeId` from the accessibility tree to resolve elements, then interacts via `Runtime.callFunctionOn` and `Input.insertText`
 - **Single dependency**: Just `chrome-remote-interface` (no Playwright, no Puppeteer)
+- **Network/console collectors**: Background Node processes that hold a CDP connection open and log events to JSONL files. The network collector also exposes a unix socket for on-demand response body fetching

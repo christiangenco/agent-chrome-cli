@@ -18,6 +18,8 @@ import { getSnapshot } from '../src/snapshot.js';
 import { saveRefs, saveTabMap, loadTabMap } from '../src/refs.js';
 import { screenshot } from '../src/screenshot.js';
 import * as actions from '../src/actions.js';
+import * as network from '../src/network.js';
+import * as consoleMon from '../src/console-log.js';
 import { readFile } from 'node:fs/promises';
 
 // ── Parse arguments ──────────────────────────────────────────────────
@@ -89,6 +91,25 @@ Interactions:
   scroll <dir> [px]             Scroll page (up/down/left/right, default 400px)
   scrollintoview @eN            Scroll element into view
 
+Network Monitoring:
+  network start                 Start capturing network requests
+  network stop                  Stop capturing and clean up
+  network list                  List all captured requests
+  network list --type Fetch,XHR Filter by resource type
+  network list --url "*/api/*"  Filter by URL glob
+  network list --status 200     Filter by status code
+  network list --json           Only application/json responses
+  network clear                 Clear captured data without stopping
+  network get r15               Full details + response body for request r15
+
+Console Monitoring:
+  console start                 Start capturing console messages
+  console stop                  Stop capturing and clean up
+  console list                  List all captured messages
+  console list --level error,warning  Filter by level
+  console clear                 Clear captured data without stopping
+  console get m3                Full details of message m3
+
 Device Emulation:
   emulate                       Mobile view (390×844, default iPhone 14)
   emulate <device>              Named preset (e.g., "iPhone SE", "iPad Pro")
@@ -147,6 +168,16 @@ async function main() {
     }
     if (command === 'window') {
       return await cmdWindow();
+    }
+
+    // Commands that need a tab but not a live CDP client
+    if (command === 'network') {
+      const { targetId } = await resolveTab(port, tabArg, agentId);
+      return await cmdNetwork(targetId);
+    }
+    if (command === 'console') {
+      const { targetId } = await resolveTab(port, tabArg, agentId);
+      return await cmdConsole(targetId);
     }
 
     // All other commands need a tab
@@ -539,6 +570,93 @@ async function cmdWindow() {
     console.log(`✓ Closed window containing ${shortId} (${closed} tab${closed !== 1 ? 's' : ''} closed)`);
   } else {
     error(`Unknown window subcommand: ${sub}. Use 'window new [url]' or 'window close [id]'.`);
+  }
+}
+
+async function cmdNetwork(targetId) {
+  const sub = restArgs[0];
+  if (sub === 'start') {
+    const result = network.startNetworkCollector(port, targetId, agentId);
+    if (result.alreadyRunning) {
+      console.log(`ℹ Network collector already running (pid ${result.pid})`);
+    } else {
+      console.log(`✓ Network collector started (pid ${result.pid})`);
+    }
+  } else if (sub === 'stop') {
+    const result = network.stopNetworkCollector(port, targetId, agentId);
+    if (result.notRunning) {
+      console.log('ℹ Network collector is not running');
+    } else {
+      console.log(`✓ Network collector stopped (pid ${result.pid})`);
+    }
+  } else if (sub === 'clear') {
+    network.clearNetworkData(port, targetId, agentId);
+    console.log('✓ Network data cleared');
+  } else if (sub === 'list') {
+    const filters = {};
+    for (let i = 1; i < restArgs.length; i++) {
+      const a = restArgs[i];
+      if (a === '--type' && restArgs[i + 1]) filters.type = restArgs[++i];
+      else if (a === '--url' && restArgs[i + 1]) filters.url = restArgs[++i];
+      else if (a === '--status' && restArgs[i + 1]) filters.status = restArgs[++i];
+      else if (a === '--json') filters.json = true;
+      else if (a.startsWith('--type=')) filters.type = a.split('=')[1];
+      else if (a.startsWith('--url=')) filters.url = a.split('=')[1];
+      else if (a.startsWith('--status=')) filters.status = a.split('=')[1];
+    }
+    const { total, requests } = network.listNetworkRequests(port, targetId, agentId, filters);
+    if (total === 0) {
+      console.log('No network requests captured. Is the collector running? Use: network start');
+    } else {
+      console.log(network.formatNetworkList(total, requests));
+    }
+  } else if (sub === 'get') {
+    requireArg(restArgs[1], 'network get', 'rN');
+    const req = await network.getNetworkRequest(port, targetId, agentId, restArgs[1]);
+    console.log(network.formatNetworkDetail(req));
+  } else {
+    error(`Unknown network subcommand: ${sub}. Use start, stop, list, clear, or get.`);
+  }
+}
+
+async function cmdConsole(targetId) {
+  const sub = restArgs[0];
+  if (sub === 'start') {
+    const result = consoleMon.startConsoleCollector(port, targetId, agentId);
+    if (result.alreadyRunning) {
+      console.log(`ℹ Console collector already running (pid ${result.pid})`);
+    } else {
+      console.log(`✓ Console collector started (pid ${result.pid})`);
+    }
+  } else if (sub === 'stop') {
+    const result = consoleMon.stopConsoleCollector(port, targetId, agentId);
+    if (result.notRunning) {
+      console.log('ℹ Console collector is not running');
+    } else {
+      console.log(`✓ Console collector stopped (pid ${result.pid})`);
+    }
+  } else if (sub === 'clear') {
+    consoleMon.clearConsoleData(port, targetId, agentId);
+    console.log('✓ Console data cleared');
+  } else if (sub === 'list') {
+    const filters = {};
+    for (let i = 1; i < restArgs.length; i++) {
+      const a = restArgs[i];
+      if (a === '--level' && restArgs[i + 1]) filters.level = restArgs[++i];
+      else if (a.startsWith('--level=')) filters.level = a.split('=')[1];
+    }
+    const { total, messages } = consoleMon.listConsoleMessages(port, targetId, agentId, filters);
+    if (total === 0) {
+      console.log('No console messages captured. Is the collector running? Use: console start');
+    } else {
+      console.log(consoleMon.formatConsoleList(total, messages));
+    }
+  } else if (sub === 'get') {
+    requireArg(restArgs[1], 'console get', 'mN');
+    const msg = consoleMon.getConsoleMessage(port, targetId, agentId, restArgs[1]);
+    console.log(consoleMon.formatConsoleDetail(msg));
+  } else {
+    error(`Unknown console subcommand: ${sub}. Use start, stop, list, clear, or get.`);
   }
 }
 

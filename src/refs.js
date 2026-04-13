@@ -26,7 +26,7 @@ function atomicWriteFileSync(filePath, data) {
   renameSync(tmp, filePath);
 }
 
-function getCacheDir(agentId) {
+export function getCacheDir(agentId) {
   const base = join(homedir(), '.agent-chrome');
   const dir = agentId ? join(base, agentId) : base;
   mkdirSync(dir, { recursive: true });

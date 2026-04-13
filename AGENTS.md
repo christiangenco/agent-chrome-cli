@@ -36,6 +36,13 @@ agent-chrome --tab t1 eval --file /tmp/script.js # Run JavaScript from file
 agent-chrome --tab t1 get url                  # Get current URL
 agent-chrome --tab t1 get title                # Get page title
 agent-chrome --tab t1 wait 2000                # Wait milliseconds
+agent-chrome --tab t1 network start            # Start capturing network requests
+agent-chrome --tab t1 network list --json      # List JSON API calls (for API discovery)
+agent-chrome --tab t1 network get r3           # Full request/response details + body
+agent-chrome --tab t1 network stop             # Stop network collector
+agent-chrome --tab t1 console start            # Start capturing console messages
+agent-chrome --tab t1 console list --level error  # List errors
+agent-chrome --tab t1 console stop             # Stop console collector
 agent-chrome tab new "https://example.com"     # Open new tab
 agent-chrome tab close t3                      # Close a tab
 agent-chrome window new "https://example.com"  # Open new window
