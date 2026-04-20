@@ -35,6 +35,7 @@ agent-chrome --tab t1 forward                  # Go forward
 agent-chrome --tab t1 reload                   # Reload page
 agent-chrome --tab t1 eval "document.title"    # Run JavaScript in page
 agent-chrome --tab t1 eval --file /tmp/script.js # Run JavaScript from file
+agent-chrome --tab t1 cdp Page.handleJavaScriptDialog --params '{"accept":true}'  # Raw CDP (escape hatch)
 agent-chrome --tab t1 get url                  # Get current URL
 agent-chrome --tab t1 get title                # Get page title
 agent-chrome --tab t1 wait 2000                # Wait milliseconds

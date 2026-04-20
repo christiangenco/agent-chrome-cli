@@ -149,6 +149,7 @@ agent-chrome window close t3
 | `screenshot --annotate` | Overlay numbered labels + print `(x, y)` centers for each ref |
 | `screenshot --grid [N]` | Overlay coordinate grid (default 50px spacing) — pair with `click <x> <y>` for iframes/canvas |
 | `eval <js>` / `eval --file <path>` | Run JavaScript in page |
+| `cdp <Domain.method> [--params '<json>']` | Send a raw CDP command (escape hatch — see below) |
 | `get url` | Get current URL |
 | `get title` | Get page title |
 | `wait <ms>` | Wait milliseconds |
@@ -240,6 +241,30 @@ agent-chrome --tab t2 network get r3
 agent-chrome --tab t2 network stop
 agent-chrome tab close t2
 ```
+
+## Raw CDP Escape Hatch
+
+For anything not covered by a named command, use `cdp`. The method name goes
+straight through to Chrome; `--params` is JSON.
+
+```bash
+# Handle a native dialog (see docs/dialogs.md)
+agent-chrome cdp Page.handleJavaScriptDialog --params '{"accept":true,"promptText":"yes"}'
+
+# Set a cookie
+agent-chrome cdp Network.setCookie --params '{"name":"s","value":"abc","domain":"example.com"}'
+
+# Set files on a hidden input by backendNodeId
+agent-chrome cdp DOM.setFileInputFiles --params '{"files":["/tmp/x.pdf"],"backendNodeId":123}'
+
+# Read performance metrics
+agent-chrome cdp Performance.enable
+agent-chrome cdp Performance.getMetrics
+```
+
+The result is printed as JSON. Use `--session <sid>` to target a specific CDP
+session (e.g. an iframe target). Method reference:
+https://chromedevtools.github.io/devtools-protocol/
 
 ## How It Works
 

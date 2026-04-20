@@ -131,6 +131,10 @@ Info:
   screenshot --grid [N]         Overlay coordinate grid (default 50px spacing)
   eval|exec|evaluate <js>       Run JavaScript
   eval|exec|evaluate --file <path>  Run JavaScript from file
+  cdp <Domain.method> [--params '<json>']
+                                Send a raw CDP command; prints the JSON result
+  cdp <Domain.method> --session <sid>
+                                Target a specific CDP session (e.g. iframe)
   get url                       Get current URL
   get title                     Get page title
   wait <ms>                     Wait milliseconds
@@ -208,6 +212,7 @@ async function main() {
         case 'forward': return await cmdForward(client);
         case 'reload': return await cmdReload(client);
         case 'eval': case 'exec': case 'evaluate': return await cmdEval(client);
+        case 'cdp': return await cmdCdp(client);
         case 'get': return await cmdGet(client);
         case 'wait': return await cmdWait();
         default:
@@ -483,6 +488,41 @@ async function cmdGet(client) {
     console.log(await actions.getTitle(client));
   } else {
     error(`Unknown get target: ${what}. Use 'url' or 'title'.`);
+  }
+}
+
+async function cmdCdp(client) {
+  requireArg(restArgs[0], 'cdp', `<Domain.method> [--params '<json>']`);
+  const method = restArgs[0];
+  if (!/^[A-Z][A-Za-z0-9]*\.[a-z][A-Za-z0-9]*$/.test(method)) {
+    error(`Invalid CDP method "${method}". Expected form: Domain.method (e.g. Page.navigate).`);
+  }
+
+  let params = {};
+  let sessionId;
+  for (let i = 1; i < restArgs.length; i++) {
+    const a = restArgs[i];
+    if (a === '--params' && restArgs[i + 1] !== undefined) {
+      try { params = JSON.parse(restArgs[++i]); }
+      catch (e) { error(`Invalid JSON for --params: ${e.message}`); }
+    } else if (a.startsWith('--params=')) {
+      try { params = JSON.parse(a.slice('--params='.length)); }
+      catch (e) { error(`Invalid JSON for --params: ${e.message}`); }
+    } else if (a === '--session' && restArgs[i + 1] !== undefined) {
+      sessionId = restArgs[++i];
+    } else if (a.startsWith('--session=')) {
+      sessionId = a.slice('--session='.length);
+    }
+  }
+
+  let result;
+  try {
+    result = await client.send(method, params, sessionId);
+  } catch (err) {
+    error(`CDP ${method} failed: ${err.message || err}`);
+  }
+  if (result !== undefined) {
+    console.log(JSON.stringify(result, null, 2));
   }
 }
 
