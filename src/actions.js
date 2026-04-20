@@ -55,6 +55,17 @@ async function callOnNode(client, backendDOMNodeId, fn, ...args) {
 }
 
 /**
+ * Click at viewport coordinates. Dispatches raw mouse events — passes through
+ * iframes, shadow DOM, and canvas-based UIs at the compositor level.
+ */
+export async function clickAt(client, x, y, { button = 'left', clicks = 1 } = {}) {
+  const { Input } = client;
+  await Input.dispatchMouseEvent({ type: 'mousePressed',  x, y, button, clickCount: clicks });
+  await Input.dispatchMouseEvent({ type: 'mouseReleased', x, y, button, clickCount: clicks });
+  return { x, y };
+}
+
+/**
  * Click an element by ref.
  */
 export async function click(client, port, targetId, refArg, agentId) {

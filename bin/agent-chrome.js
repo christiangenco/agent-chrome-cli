@@ -79,6 +79,7 @@ Snapshots:
 
 Interactions:
   click @eN                     Click element by ref
+  click <x> <y>                 Click at viewport coordinates (raw mouse event)
   fill @eN "text"               Clear field and type text
   type @eN "text"               Append text to field
   select @eN "value"            Select dropdown option
@@ -127,6 +128,7 @@ Info:
   screenshot --annotate         Screenshot with numbered labels on interactive elements
   screenshot --full             Full-page screenshot
   screenshot --full --annotate  Full-page with annotations
+  screenshot --grid [N]         Overlay coordinate grid (default 50px spacing)
   eval|exec|evaluate <js>       Run JavaScript
   eval|exec|evaluate --file <path>  Run JavaScript from file
   get url                       Get current URL
@@ -280,21 +282,60 @@ async function cmdSnapshot(client, targetId, shortId) {
 async function cmdScreenshot(client) {
   const fullPage = restArgs.includes('--full') || restArgs.includes('-f');
   const annotate = restArgs.includes('--annotate');
-  const savePath = restArgs.filter(a => !a.startsWith('-'))[0] || undefined;
-  const { path, annotations } = await screenshot(client, savePath, { fullPage, annotate });
+
+  // --grid [N] or --grid=N
+  let grid = false;
+  let gridSize = 50;
+  for (let i = 0; i < restArgs.length; i++) {
+    const a = restArgs[i];
+    if (a === '--grid') {
+      grid = true;
+      const next = restArgs[i + 1];
+      if (next && /^\d+$/.test(next)) {
+        gridSize = parseInt(next, 10);
+      }
+    } else if (a.startsWith('--grid=')) {
+      grid = true;
+      const val = a.slice('--grid='.length);
+      if (/^\d+$/.test(val)) gridSize = parseInt(val, 10);
+    }
+  }
+
+  // Path is any positional arg that isn't a flag and isn't the numeric grid size
+  const gridIdx = restArgs.indexOf('--grid');
+  const savePath = restArgs.filter((a, i) => {
+    if (a.startsWith('-')) return false;
+    // Skip the numeric arg immediately after --grid
+    if (gridIdx !== -1 && i === gridIdx + 1 && /^\d+$/.test(a)) return false;
+    return true;
+  })[0] || undefined;
+
+  const { path, annotations } = await screenshot(client, savePath, { fullPage, annotate, grid, gridSize });
   console.log(path);
   if (annotations && annotations.length > 0) {
     console.log(`\n${annotations.length} annotated elements:`);
     for (const a of annotations) {
       const name = a.name ? ` "${a.name}"` : '';
-      console.log(`  @e${a.number}  ${a.role}${name}`);
+      const cx = Math.round(a.box.x + a.box.width / 2);
+      const cy = Math.round(a.box.y + a.box.height / 2);
+      console.log(`  @e${a.number}  ${a.role}${name}  (${cx}, ${cy})`);
     }
   }
 }
 
 async function cmdClick(client, targetId) {
-  requireArg(restArgs[0], 'click', '@eN');
-  const result = await actions.click(client, port, targetId, restArgs[0], agentId);
+  const a = restArgs[0];
+  const b = restArgs[1];
+
+  // Coordinate form: click <x> <y>
+  if (a && b && /^-?\d+$/.test(a) && /^-?\d+$/.test(b)) {
+    const { x, y } = await actions.clickAt(client, parseInt(a, 10), parseInt(b, 10));
+    console.log(`✓ Clicked at (${x}, ${y})`);
+    return;
+  }
+
+  requireArg(a, 'click', '@eN | <x> <y>');
+  const result = await actions.click(client, port, targetId, a, agentId);
   console.log(`✓ Clicked ${result.role} "${result.name || ''}"`);
 }
 

@@ -8,6 +8,7 @@ import { homedir } from 'node:os';
 import { getSnapshot } from './snapshot.js';
 
 const ANNOTATION_OVERLAY_ID = '__agent_chrome_annotations__';
+const GRID_OVERLAY_ID = '__agent_chrome_grid__';
 
 /**
  * For each ref, resolve its backendDOMNodeId to a bounding box via CDP.
@@ -108,10 +109,53 @@ async function removeAnnotationOverlay(client) {
 }
 
 /**
+ * Inject a transient coordinate grid overlay. SVG lines + labels, fixed to
+ * the viewport for normal captures or sized to the full document for --full.
+ */
+async function injectGridOverlay(client, spacing, fullPage) {
+  await client.Runtime.evaluate({
+    expression: `(() => {
+      var id = ${JSON.stringify(GRID_OVERLAY_ID)};
+      if (document.getElementById(id)) return;
+      var full = ${fullPage ? 'true' : 'false'};
+      var sp = ${spacing};
+      var w = full ? Math.max(document.documentElement.scrollWidth, window.innerWidth) : window.innerWidth;
+      var h = full ? Math.max(document.documentElement.scrollHeight, window.innerHeight) : window.innerHeight;
+      var parts = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" style="position:' + (full ? 'absolute' : 'fixed') + ';top:0;left:0;z-index:2147483647;pointer-events:none;opacity:0.55">'];
+      for (var x = 0; x <= w; x += sp) {
+        parts.push('<line x1="' + x + '" y1="0" x2="' + x + '" y2="' + h + '" stroke="#ff3860" stroke-width="1"/>');
+        parts.push('<text x="' + (x + 2) + '" y="10" fill="#ff3860" font-size="10" font-family="monospace">' + x + '</text>');
+      }
+      for (var y = 0; y <= h; y += sp) {
+        parts.push('<line x1="0" y1="' + y + '" x2="' + w + '" y2="' + y + '" stroke="#ff3860" stroke-width="1"/>');
+        parts.push('<text x="2" y="' + (y + 10) + '" fill="#ff3860" font-size="10" font-family="monospace">' + y + '</text>');
+      }
+      parts.push('</svg>');
+      var d = document.createElement('div');
+      d.id = id;
+      d.style.cssText = 'position:' + (full ? 'absolute' : 'fixed') + ';top:0;left:0;width:0;height:0;pointer-events:none;z-index:2147483647;';
+      d.innerHTML = parts.join('');
+      document.documentElement.appendChild(d);
+    })()`,
+    returnByValue: true,
+  });
+}
+
+/**
+ * Remove the grid overlay from the page.
+ */
+async function removeGridOverlay(client) {
+  await client.Runtime.evaluate({
+    expression: `(() => { const el = document.getElementById(${JSON.stringify(GRID_OVERLAY_ID)}); if (el) el.remove(); })()`,
+    returnByValue: true,
+  }).catch(() => {});
+}
+
+/**
  * Take a screenshot and save to disk.
  * @param {CDP.Client} client
  * @param {string} [savePath] - Where to save. If omitted, auto-generates in ~/.agent-chrome/screenshots/
- * @param {object} [opts] - {fullPage?: boolean, annotate?: boolean, format?: 'png'|'jpeg', quality?: number}
+ * @param {object} [opts] - {fullPage?: boolean, annotate?: boolean, grid?: boolean, gridSize?: number, format?: 'png'|'jpeg', quality?: number}
  * @returns {Promise<{path: string, annotations?: Array}>}
  */
 export async function screenshot(client, savePath, opts = {}) {
@@ -124,6 +168,7 @@ export async function screenshot(client, savePath, opts = {}) {
   }
 
   let overlayInjected = false;
+  let gridInjected = false;
   let annotations;
 
   try {
@@ -170,6 +215,11 @@ export async function screenshot(client, savePath, opts = {}) {
       params.captureBeyondViewport = true;
     }
 
+    if (opts.grid) {
+      await injectGridOverlay(client, opts.gridSize || 50, !!opts.fullPage);
+      gridInjected = true;
+    }
+
     const { data } = await Page.captureScreenshot(params);
     const buffer = Buffer.from(data, 'base64');
 
@@ -188,6 +238,9 @@ export async function screenshot(client, savePath, opts = {}) {
     if (overlayInjected) {
       await removeAnnotationOverlay(client);
     }
+    if (gridInjected) {
+      await removeGridOverlay(client);
+    }
 
     return {
       path: savePath,
@@ -196,6 +249,9 @@ export async function screenshot(client, savePath, opts = {}) {
   } catch (error) {
     if (overlayInjected) {
       await removeAnnotationOverlay(client);
+    }
+    if (gridInjected) {
+      await removeGridOverlay(client);
     }
     throw error;
   }

@@ -98,6 +98,7 @@ agent-chrome window close t3
 | Command | Description |
 |---|---|
 | `click @eN` | Click element by ref |
+| `click <x> <y>` | Click at viewport coordinates (raw mouse event — passes through iframes, shadow DOM, canvas) |
 | `fill @eN "text"` | Clear field and type text |
 | `type @eN "text"` | Append text (don't clear first) |
 | `select @eN "value"` | Select dropdown option |
@@ -145,6 +146,8 @@ agent-chrome window close t3
 | Command | Description |
 |---|---|
 | `screenshot [path] [--full]` | Take PNG screenshot (default: viewport only; `--full`: entire page) |
+| `screenshot --annotate` | Overlay numbered labels + print `(x, y)` centers for each ref |
+| `screenshot --grid [N]` | Overlay coordinate grid (default 50px spacing) — pair with `click <x> <y>` for iframes/canvas |
 | `eval <js>` / `eval --file <path>` | Run JavaScript in page |
 | `get url` | Get current URL |
 | `get title` | Get page title |

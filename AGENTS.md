@@ -9,6 +9,7 @@ agent-chrome tabs                              # List all open tabs (t1, t2, ...
 agent-chrome --tab t1 snapshot -c              # Compact accessibility snapshot
 agent-chrome --tab t1 snapshot -ic             # Interactive elements only (smallest)
 agent-chrome --tab t1 click @e5                # Click element by ref
+agent-chrome --tab t1 click 420 312            # Click at viewport coords (iframes/canvas/shadow DOM escape hatch)
 agent-chrome --tab t1 fill @e3 "text"          # Clear field and type text
 agent-chrome --tab t1 type @e3 "text"          # Append text (don't clear)
 agent-chrome --tab t1 select @e3 "value"       # Select dropdown option
@@ -22,7 +23,8 @@ agent-chrome --tab t1 scrollintoview @e5       # Scroll element into view
 agent-chrome --tab t1 upload @e3 /path/to/file # Upload file to input
 agent-chrome --tab t1 screenshot               # Screenshot (viewport only)
 agent-chrome --tab t1 screenshot --full        # Full-page screenshot
-agent-chrome --tab t1 screenshot --annotate    # Screenshot with numbered labels on interactive elements
+agent-chrome --tab t1 screenshot --annotate    # Screenshot with numbered labels + (x,y) centers on interactive elements
+agent-chrome --tab t1 screenshot --grid        # Overlay coordinate grid (default 50px spacing) — use with click <x> <y>
 agent-chrome --tab t1 emulate mobile           # Mobile view (iPhone 14 — 390×844)
 agent-chrome --tab t1 emulate "iPad Pro"       # Named device preset
 agent-chrome --tab t1 emulate 360 800          # Custom mobile dimensions
