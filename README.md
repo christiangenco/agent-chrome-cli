@@ -266,6 +266,12 @@ The result is printed as JSON. Use `--session <sid>` to target a specific CDP
 session (e.g. an iframe target). Method reference:
 https://chromedevtools.github.io/devtools-protocol/
 
+## Skills
+
+See [docs/](./docs/) for short notes on dialogs, iframes, shadow DOM, custom
+dropdowns, uploads, scrolling, and canvas-based UIs. Read one only when the
+default commands stop working on a given page.
+
 ## How It Works
 
 - **Stateless CLI**: Each invocation connects to Chrome via CDP, runs one command, exits

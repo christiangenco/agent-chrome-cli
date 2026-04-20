@@ -79,6 +79,12 @@ agent-chrome --agent-id agent1 --tab t1 snapshot -c
 agent-chrome --agent-id agent2 --tab t3 snapshot -c
 ```
 
+## Skills
+
+When a default command fails for a known sticky UI pattern (dialogs, iframes,
+shadow DOM, custom dropdowns, uploads, scrolling, canvas), check [docs/](./docs/)
+first.
+
 ## Notes
 
 - Requires Chrome running with `--remote-debugging-port=9222`
