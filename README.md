@@ -276,7 +276,7 @@ default commands stop working on a given page.
 
 - **Stateless CLI**: Each invocation connects to Chrome via CDP, runs one command, exits
 - **Ref cache**: `~/.agent-chrome/[agent-id/]` stores the ref→element mapping between invocations so `snapshot` assigns refs and `click @e5` resolves them. All writes are atomic (temp file + rename) to prevent corruption under concurrent access
-- **Accessibility tree**: Uses Chrome's `Accessibility.getFullAXTree()` CDP API for the snapshot, not DOM scraping
+- **Accessibility tree**: Uses Chrome's `Accessibility.getFullAXTree()` CDP API for the snapshot, not DOM scraping. Same-origin iframes are expanded one level deep and inlined under the `Iframe` node, so refs inside them resolve like any other ref
 - **Element interaction**: Uses `backendDOMNodeId` from the accessibility tree to resolve elements, then interacts via `Runtime.callFunctionOn` and `Input.insertText`
 - **Single dependency**: Just `chrome-remote-interface` (no Playwright, no Puppeteer)
 - **Network/console collectors**: Background Node processes that hold a CDP connection open and log events to JSONL files. The network collector also exposes a unix socket for on-demand response body fetching

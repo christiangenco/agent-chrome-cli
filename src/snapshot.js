@@ -271,7 +271,61 @@ function getExtraInfo(node) {
 }
 
 /**
- * Get an enhanced snapshot of the page.
+ * Race a promise against a timeout. Rejects with 'timeout' on expiry.
+ */
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
+}
+
+/**
+ * Walk a tree and collect Iframe nodes. Does NOT recurse into iframe
+ * children — we only expand one level deep.
+ */
+function collectIframeNodes(node, out) {
+  if (node.rawRole === 'Iframe') {
+    if (node.backendDOMNodeId) out.push(node);
+    return;
+  }
+  for (const child of node.children) {
+    collectIframeNodes(child, out);
+  }
+}
+
+/**
+ * Fetch the AX subtree for a same-origin iframe and return its root tree node.
+ * Returns null if the iframe is cross-origin, the frameId can't be resolved,
+ * or the AX fetch times out.
+ */
+async function fetchIframeSubtree(client, backendNodeId) {
+  try {
+    const { node } = await withTimeout(
+      client.DOM.describeNode({ backendNodeId, depth: 0 }),
+      2000
+    );
+    const frameId = node?.frameId || node?.contentDocument?.frameId;
+    if (!frameId) return null;
+
+    const { nodes } = await withTimeout(
+      client.Accessibility.getFullAXTree({ frameId }),
+      2000
+    );
+    if (!nodes || nodes.length === 0) return null;
+
+    const subtree = buildTree(nodes);
+    if (subtree) subtree._isIframeRoot = true;
+    return subtree;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get an enhanced snapshot of the page. Same-origin iframes are expanded one
+ * level deep — their AX subtree is inlined under the Iframe node. Cross-origin
+ * iframes are left empty; coordinate clicks (`click <x> <y>`) still work.
  * @param {CDP.Client} client - CDP client connected to a tab
  * @param {object} opts - {interactive?: boolean, compact?: boolean, maxDepth?: number, selector?: string}
  * @returns {Promise<{tree: string, refs: Record<string, {backendDOMNodeId: number, role: string, name: string}>}>}
@@ -284,6 +338,15 @@ export async function getSnapshot(client, opts = {}) {
 
   if (!root) {
     return { tree: '(empty page)', refs: {} };
+  }
+
+  // Expand same-origin iframes one level deep. Subtrees are attached as
+  // children of the Iframe node; rendering picks them up via _isIframeRoot.
+  const iframeNodes = [];
+  collectIframeNodes(root, iframeNodes);
+  for (const iframeNode of iframeNodes) {
+    const subtree = await fetchIframeSubtree(client, iframeNode.backendDOMNodeId);
+    if (subtree) iframeNode.children.push(subtree);
   }
 
   const refs = {};
